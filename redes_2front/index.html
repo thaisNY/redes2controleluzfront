@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IoT Room Monitoring</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      position: relative;
+      background-color: white;
+      transition: background-color 0.5s;
+    }
+    .status {
+      font-size: 24px;
+      margin: 20px 0;
+      text-align: center;
+      position: absolute;
+      top: 0;
+      width: 100%;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .alert {
+      font-size: 20px;
+      color: white;
+      position: absolute;
+      bottom: 10%;
+      width: 100%;
+      text-align: center;
+      display: none;
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.11.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.11.0/firebase-database-compat.js"></script>
+  <script>
+    // Configuração do Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyD--q13wgvfzF8sjA0iIW51_K9TCH7ktRE",
+      authDomain: "lumenssif-v1.firebaseapp.com",
+      databaseURL: "https://lumenssif-v1-default-rtdb.firebaseio.com",
+      projectId: "lumenssif-v1",
+      storageBucket: "lumenssif-v1.appspot.com",
+      messagingSenderId: "130177995110",
+      appId: "1:130177995110:web:9b4615f157012970e638a7",
+      measurementId: "G-G72CFR3TRN"
+    };
+
+    // Inicializar o Firebase
+    firebase.initializeApp(firebaseConfig);
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const roomStatusElement = document.getElementById('roomStatus');
+      const keepRoomOnButton = document.getElementById('keepRoomOnButton');
+      const alertMessage = document.getElementById('alertMessage');
+
+      // Referências ao banco de dados
+      const db = firebase.database();
+      const presenceCamRef = db.ref('presencacam');
+      const somSalaRef = db.ref('somsala');
+      const presenceInfraRef = db.ref('presencainfra');
+      const ledRef = db.ref('led');
+
+      function checkRoomStatus(presencacam, somsala, presencainfra) {
+        console.log('Verificando status da sala...');
+        if (!presencacam && !somsala && !presencainfra) {
+          ledRef.set(false);
+          document.body.style.backgroundColor = 'black';
+          roomStatusElement.textContent = 'Desligada';
+          showMessage('Sala Desligada');
+        } else {
+          ledRef.set(true);
+          document.body.style.backgroundColor = 'white';
+          roomStatusElement.textContent = 'Em Uso';
+          hideMessage();
+        }
+      }
+
+      function showMessage(message, isPermanent = false) {
+        alertMessage.textContent = message;
+        alertMessage.style.display = 'block';
+        if (!isPermanent) {
+          setTimeout(() => {
+            alertMessage.style.display = 'none';
+          }, 3000); // Oculta a mensagem após 3 segundos
+        }
+      }
+
+      function hideMessage() {
+        alertMessage.style.display = 'none';
+      }
+
+      keepRoomOnButton.addEventListener('click', () => {
+        ledRef.set(true);
+        document.body.style.backgroundColor = 'white';
+        showMessage('A sala permanecerá ligada.');
+        setTimeout(hideMessage, 3000);
+      });
+
+      // Função para atualizar o status da sala
+      function updateRoomStatus() {
+        presenceCamRef.once('value').then(snapshot => {
+          const presencacam = snapshot.val();
+          somSalaRef.once('value').then(snapshot => {
+            const somsala = snapshot.val();
+            presenceInfraRef.once('value').then(snapshot => {
+              const presencainfra = snapshot.val();
+              checkRoomStatus(presencacam, somsala, presencainfra);
+            });
+          });
+        });
+      }
+
+      // Checar o status da sala a cada 10 segundos
+      setInterval(updateRoomStatus, 10000);
+
+      // Inicializar a verificação de status da sala
+      updateRoomStatus();
+    });
+  </script>
+</head>
+<body>
+  <div class="status">Status da Sala: <span id="roomStatus">Desconhecido</span></div>
+  <button id="keepRoomOnButton">Manter Sala Ligada</button>
+  <div class="alert" id="alertMessage"></div>
+</body>
+</html>
